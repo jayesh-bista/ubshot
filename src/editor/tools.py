@@ -66,6 +66,7 @@ class ToolType(Enum):
     BLUR = auto()
     STEP = auto()
     ERASER = auto()
+    OCR = auto()
 
 
 class ToolBase(ABC):
@@ -892,6 +893,7 @@ def create_tool(tool_type: ToolType) -> ToolBase:
         ToolType.BLUR: BlurTool,
         ToolType.STEP: StepTool,
         ToolType.ERASER: EraserTool,
+        ToolType.OCR: OCRTool,
     }
     
     if tool_type not in tool_classes:
@@ -1322,6 +1324,79 @@ class EraserTool(ToolBase):
             pen.setStyle(Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.setBrush(QColor(255, 255, 255, 100))
+            painter.drawRect(self._current_rect)
+    
+    def on_deactivate(self, canvas: "EditorCanvas") -> None:
+        self._current_rect = None
+        self._start_pos = None
+
+
+class OCRTool(ToolBase):
+    """
+    OCR Tool - Select a region and extract text using optical character recognition.
+    
+    Usage:
+    - Click and drag to select region containing text
+    - On release, text is extracted and copied to clipboard
+    - A popup shows the extracted text
+    - Tool switches to Pointer after extraction
+    """
+    
+    def __init__(self) -> None:
+        super().__init__()
+        self._start_pos: Optional[QPointF] = None
+        self._current_rect: Optional[QRectF] = None
+    
+    @property
+    def tool_type(self) -> ToolType:
+        return ToolType.OCR
+    
+    @property
+    def cursor(self) -> Qt.CursorShape:
+        return Qt.CursorShape.CrossCursor
+    
+    def on_mouse_press(
+        self,
+        pos: QPointF,
+        canvas: "EditorCanvas",
+        modifiers: Qt.KeyboardModifier
+    ) -> None:
+        self._start_pos = pos
+        self._current_rect = QRectF(pos, pos)
+    
+    def on_mouse_move(
+        self,
+        pos: QPointF,
+        canvas: "EditorCanvas",
+        modifiers: Qt.KeyboardModifier
+    ) -> None:
+        if self._start_pos:
+            self._current_rect = QRectF(self._start_pos, pos).normalized()
+            canvas.update()
+    
+    def on_mouse_release(
+        self,
+        pos: QPointF,
+        canvas: "EditorCanvas",
+        modifiers: Qt.KeyboardModifier
+    ) -> None:
+        if self._current_rect and self._current_rect.width() > 5 and self._current_rect.height() > 5:
+            # Perform OCR on the selected region
+            canvas.perform_ocr(self._current_rect.toRect())
+        
+        self._current_rect = None
+        self._start_pos = None
+        canvas.update()
+    
+    def paint_preview(self, painter: QPainter) -> None:
+        """Paint the selection preview rectangle with OCR styling."""
+        if self._current_rect:
+            # Draw selection with blue dashed border (OCR style)
+            pen = QPen(QColor(100, 150, 255, 200))
+            pen.setWidth(2)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            painter.setBrush(QColor(100, 150, 255, 40))
             painter.drawRect(self._current_rect)
     
     def on_deactivate(self, canvas: "EditorCanvas") -> None:

@@ -11,7 +11,6 @@ This module contains the AppCore class which is responsible for:
 This is the central orchestration point for the application.
 """
 
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional

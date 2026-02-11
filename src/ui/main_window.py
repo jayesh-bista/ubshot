@@ -8,7 +8,6 @@ EditorWidget instead of the placeholder.
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QImage, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,

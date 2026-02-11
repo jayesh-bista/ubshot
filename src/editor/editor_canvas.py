@@ -17,6 +17,7 @@ from typing import List, Optional
 
 from PySide6.QtCore import (
     QPointF,
+    QRect,
     QRectF,
     Qt,
     Signal,
@@ -202,6 +203,7 @@ class EditorCanvas(QWidget):
     crop_selection_changed = Signal(bool)  # True when crop selection exists
     color_sampled = Signal(QColor)  # Emitted when eyedropper samples a color
     text_edit_finished = Signal()  # Emitted when text editing is done (switch to Pointer)
+    ocr_completed = Signal(str)  # Emitted with extracted text after OCR
     
     # Zoom limits
     MIN_ZOOM = 0.1
@@ -628,6 +630,41 @@ class EditorCanvas(QWidget):
     def redo(self) -> None:
         if self._undo_stack.canRedo():
             self._undo_stack.redo()
+    
+    # ─── OCR ───────────────────────────────────────────────────────────────
+    
+    def perform_ocr(self, rect: QRect) -> None:
+        """
+        Perform OCR on the specified region of the image.
+        
+        Args:
+            rect: The region to extract text from (in image coordinates)
+        """
+        if not self._image or rect.isEmpty():
+            return
+        
+        from src.services.ocr_service import extract_text_from_region, is_ocr_available
+        
+        if not is_ocr_available():
+            self._logger.warning("OCR is not available - pytesseract not installed")
+            self.ocr_completed.emit("")
+            return
+        
+        # Clamp rect to image bounds
+        img_rect = self._image.rect()
+        clamped_rect = rect.intersected(img_rect)
+        
+        if clamped_rect.width() < 5 or clamped_rect.height() < 5:
+            self.ocr_completed.emit("")
+            return
+        
+        # Extract text from region
+        text = extract_text_from_region(self._image, clamped_rect)
+        
+        self._logger.info(f"OCR extracted {len(text)} characters from region {clamped_rect}")
+        
+        # Emit signal with extracted text
+        self.ocr_completed.emit(text)
     
     # ─── Text Editing ─────────────────────────────────────────────────────
     

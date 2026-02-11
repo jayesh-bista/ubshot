@@ -685,6 +685,7 @@ class EditorWidget(QWidget):
             (ToolType.STEP, "Step", "step", "N"),
             (ToolType.BLUR, "Blur", "blur", "B"),
             (ToolType.ERASER, "Eraser", "eraser", "X"),
+            (ToolType.OCR, "OCR (Text Recognition)", "ocr", "O"),
         ]
         
         for tool_type, tooltip, icon_shape, shortcut in tool_configs:
@@ -795,6 +796,7 @@ class EditorWidget(QWidget):
         self._canvas.image_changed.connect(self._on_image_changed)
         self._canvas.crop_selection_changed.connect(self._on_crop_selection_changed)
         self._canvas.text_edit_finished.connect(self._on_text_edit_finished)
+        self._canvas.ocr_completed.connect(self._on_ocr_completed)
         self._properties.style_changed.connect(self._on_style_changed)
         self._status.zoom_selected.connect(self._on_zoom_selected)
     
@@ -865,6 +867,134 @@ class EditorWidget(QWidget):
         """Switch to Pointer tool after text editing is done."""
         self._logger.info("Received text_edit_finished signal - switching to Pointer")
         self._select_tool(ToolType.POINTER)
+    
+    @Slot(str)
+    def _on_ocr_completed(self, text: str) -> None:
+        """Handle OCR completion - copy text to clipboard and show popup."""
+        from PySide6.QtWidgets import QApplication
+        
+        if text:
+            # Copy text to clipboard
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self._logger.info(f"OCR: Copied {len(text)} characters to clipboard")
+            
+            # Show OCR result popup
+            self._show_ocr_popup(text)
+        else:
+            self._logger.info("OCR: No text detected in selected region")
+            self._show_ocr_popup("")
+        
+        # Switch back to Pointer tool
+        self._select_tool(ToolType.POINTER)
+    
+    def _show_ocr_popup(self, text: str) -> None:
+        """Show a popup with OCR results."""
+        from PySide6.QtWidgets import QLabel, QPushButton
+        from PySide6.QtCore import QTimer
+        
+        # Create popup widget
+        popup = QWidget(self)
+        popup.setObjectName("OCRPopup")
+        popup.setStyleSheet("""
+            #OCRPopup {
+                background-color: rgba(40, 40, 45, 0.95);
+                border: 1px solid rgba(100, 150, 255, 0.6);
+                border-radius: 8px;
+            }
+            QLabel#OCRTitle {
+                color: rgba(100, 150, 255, 1.0);
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QLabel#OCRText {
+                color: white;
+                font-size: 11px;
+            }
+            QPushButton {
+                background-color: rgba(100, 150, 255, 0.8);
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(100, 150, 255, 1.0);
+            }
+        """)
+        
+        layout = QVBoxLayout(popup)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
+        
+        # Title
+        title = QLabel("✓ Text copied to clipboard" if text else "⚠ No text detected")
+        title.setObjectName("OCRTitle")
+        layout.addWidget(title)
+        
+        if text:
+            # Show preview (max 100 chars)
+            preview_text = text[:100] + ("..." if len(text) > 100 else "")
+            preview = QLabel(preview_text)
+            preview.setObjectName("OCRText")
+            preview.setWordWrap(True)
+            preview.setMaximumWidth(300)
+            layout.addWidget(preview)
+            
+            # "Copy without line breaks" button
+            copy_btn = QPushButton("Copy without line breaks")
+            copy_btn.clicked.connect(lambda: self._copy_ocr_without_linebreaks(text, popup))
+            layout.addWidget(copy_btn)
+        
+        popup.adjustSize()
+        
+        # Position popup near top-right of canvas
+        canvas_rect = self._canvas.geometry()
+        popup.move(canvas_rect.right() - popup.width() - 20, canvas_rect.top() + 20)
+        popup.show()
+        
+        # Auto-close after 4 seconds
+        QTimer.singleShot(4000, popup.close)
+    
+    def _copy_ocr_without_linebreaks(self, text: str, popup: QWidget) -> None:
+        """Copy OCR text without line breaks."""
+        from PySide6.QtWidgets import QApplication
+        
+        text_no_breaks = text.replace('\n', ' ').replace('  ', ' ')
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text_no_breaks)
+        self._logger.info("OCR: Copied text without line breaks")
+        popup.close()
+    
+    def _ocr_full_image(self) -> None:
+        """Perform OCR on the entire image (Ctrl+O shortcut)."""
+        from src.services.ocr_service import extract_text, is_ocr_available
+        from PySide6.QtWidgets import QApplication
+        
+        if not self._canvas.image:
+            return
+        
+        if not is_ocr_available():
+            self._logger.warning("OCR is not available")
+            return
+        
+        self._logger.info("OCR: Running on full image...")
+        
+        # Extract text from full image
+        text = extract_text(self._canvas.image)
+        
+        if text:
+            # Copy to clipboard
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self._logger.info(f"OCR: Copied {len(text)} characters from full image")
+            
+            # Show popup
+            self._show_ocr_popup(text)
+        else:
+            self._logger.info("OCR: No text detected in image")
+            self._show_ocr_popup("")
     
     @Slot(object)
     def _on_selection_changed(self, annotation) -> None:
@@ -982,6 +1112,7 @@ class EditorWidget(QWidget):
             Qt.Key.Key_N: ToolType.STEP,
             Qt.Key.Key_B: ToolType.BLUR,
             Qt.Key.Key_X: ToolType.ERASER,
+            Qt.Key.Key_O: ToolType.OCR,
         }
         
         if key in tool_shortcuts and not modifiers:
@@ -996,6 +1127,11 @@ class EditorWidget(QWidget):
         # Copy shortcut (Ctrl+C) - copies image WITH annotations
         if key == Qt.Key.Key_C and modifiers & Qt.KeyboardModifier.ControlModifier:
             self._copy_to_clipboard()
+            return
+        
+        # OCR full image shortcut (Ctrl+O)
+        if key == Qt.Key.Key_O and modifiers & Qt.KeyboardModifier.ControlModifier:
+            self._ocr_full_image()
             return
         
         # Text annotation shortcuts
