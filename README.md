@@ -11,39 +11,21 @@ A **Shottr-like screenshot and annotation tool for Ubuntu Linux**.
 - ⚡ **Global hotkeys** - Works even when app is not focused
 - 📋 **Auto-copy** - Screenshots automatically copied to clipboard
 - 💾 **Auto-save** - Automatic saving to disk
-- ✏️ **Annotation tools** - Rectangle, Ellipse, Arrow, Text
-- 🖌️ **Freehand drawing** - Smooth freehand paths
-- 🌟 **Highlighter** - Semi-transparent marker
-- 💡 **Spotlight** - Darken outside, highlight inside
-- 🔲 **Blur** - Obscure sensitive content
-- 🔢 **Step counter** - Numbered badges for instructions
+- ✏️ **Annotation tools** - Rectangle, Ellipse, Arrow, Text, Freehand, Highlighter, Spotlight, Blur, Step Counter, Eraser
+- 🔤 **OCR** - Extract text from screenshots (region or full image)
 - ↩️ **Undo/Redo** - Full history support
 - 🔔 **System tray** - Quick access to capture actions
 
-## 🚀 Quick Install (One Command)
+## 🚀 Installation
+
+### Prerequisites
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/bistaSananiJayesh/ubshot/main/install.sh | sudo bash
+# Install system dependencies
+sudo apt install python3 python3-pip python3-venv tesseract-ocr tesseract-ocr-eng
 ```
 
-Or with wget:
-```bash
-wget -qO- https://raw.githubusercontent.com/bistaSananiJayesh/ubshot/main/install.sh | sudo bash
-```
-
-## 📦 Manual Installation
-
-### Option 1: Download .deb Package
-
-```bash
-# Download
-wget https://github.com/bistaSananiJayesh/ubshot/releases/latest/download/ubshot_1.0.1_all.deb
-
-# Install (automatically handles dependencies)
-sudo apt install ./ubshot_1.0.1_all.deb
-```
-
-### Option 2: Run from Source
+### Run from Source
 
 ```bash
 git clone https://github.com/bistaSananiJayesh/ubshot.git
@@ -62,11 +44,11 @@ python -m src.app
 | `Ctrl+Shift+S` | Capture Fullscreen |
 | `Ctrl+C` | Copy to Clipboard |
 | `Ctrl+S` | Save |
+| `Ctrl+O` | OCR Full Image |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Shift+Z` | Redo |
 | `Delete` | Delete Selected |
-| `Space + Drag` | Pan Canvas |
-| `Ctrl + Scroll` | Zoom |
+| `Escape` | Close / Cancel |
 
 ## 🛠️ Tool Shortcuts
 
@@ -79,21 +61,17 @@ python -m src.app
 | `T` | Text |
 | `F` | Freehand |
 | `H` | Highlighter |
-| `O` | Spotlight |
+| `S` | Spotlight |
 | `B` | Blur |
 | `N` | Step Counter |
+| `O` | OCR (region select) |
 
 ## 📋 Requirements
 
 - Ubuntu 22.04+ / Debian 12+
 - Python 3.10+
 - X11 (for global hotkeys)
-
-## 🗑️ Uninstall
-
-```bash
-sudo apt remove ubshot
-```
+- `tesseract-ocr` (for OCR feature)
 
 ## 📄 License
 
