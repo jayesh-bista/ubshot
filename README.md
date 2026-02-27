@@ -28,12 +28,12 @@ sudo apt install python3 python3-pip python3-venv tesseract-ocr tesseract-ocr-en
 ### Run from Source
 
 ```bash
-git clone https://github.com/bistaSananiJayesh/ubshot.git
+git clone https://github.com/jayesh-bista/ubshot.git
 cd ubshot
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python -m src.app
+python3 -m src.app
 ```
 
 ## ⌨️ Keyboard Shortcuts
